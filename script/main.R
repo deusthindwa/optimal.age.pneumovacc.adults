@@ -4,7 +4,7 @@ require(curl)
 require(Hmisc)
 
 #load the IPD cases
-IPD <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_ipd_cases.csv")) 
+IPD <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_ipd_incid.csv")) 
 POP <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_total_pop.csv")) 
 
 #add age increment
@@ -29,16 +29,6 @@ model.all <- nls(incidence ~ alpha * exp(beta*agey) + theta, start=start, data=n
 model.pcv13 <- nls(incidence ~ alpha * exp(beta*agey) + theta, start=start, data=na.omit(subset(IPD,serogroup=="PCV13 IPD")), nls.control(maxiter=200))
 model.ppv23 <- nls(incidence ~ alpha * exp(beta*agey) + theta, start=start, data=na.omit(subset(IPD,serogroup=="PPV23 IPD")), nls.control(maxiter=200))
 
-#IPD incidence extrapolated for each age-year
-Cases <- data_frame(agey=seq(from=55,to=90,by=1)) %>%
-                    mutate(all.incid=predict(model.all,list(agey=agey))) %>%
-                    mutate(pcv13.incid=predict(model.pcv13,list(agey=agey))) %>%
-                    mutate(ppv23.incid=predict(model.ppv23,list(agey=agey)))
-Cases <- merge(Cases,POP)
-Cases$all.cases <- Cases$all.incid*Cases$ntotal/100000
-Cases$pcv13.cases <- Cases$pcv13.incid*Cases$ntotal/100000
-Cases$ppv23.cases <- Cases$ppv23.incid*Cases$ntotal/100000
-
 #plot fitted curves with backward or forward extrapolation
 ggplot() + 
   geom_point(aes(x=IPD$agey,y=IPD$incidence,color=IPD$serogroup), size=2.5) + 
@@ -48,21 +38,47 @@ ggplot() +
   ylim(0,125) + xlim(55,90) +
   theme_bw()
 
+#generate IPD cases fron total pop and IPD incidence for each individual age
+Cases <- data_frame(agey=seq(from=55,to=90,by=1)) %>% mutate(all.incid=predict(model.all,list(agey=agey))) %>%
+mutate(pcv13.incid=predict(model.pcv13,list(agey=agey))) %>% mutate(ppv23.incid=predict(model.ppv23,list(agey=agey)))
+Cases <- merge(Cases,POP)
+Cases$all.cases <- Cases$all.incid*Cases$ntotal
+Cases$pcv13.cases <- Cases$pcv13.incid*Cases$ntotal
+Cases$ppv23.cases <- Cases$ppv23.incid*Cases$ntotal
 
-# to include baseline VE decay with age
+#estimate vaccine impact against all IPD serotypes
+Ve=0.5
+half=5
+Vac.age=55
+Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
+plot(Cases$agey, Cases$Impact,type="l",col="blue", ylim=c(0,3e+06),xlim=c(Vac.age,90))
+points(Cases$Impact %>% sum)
 
-# input
-Ve = .5 #first year Ve against VT IPD (currently age independent)
+for(i in c(0.5)){
+  for(j in c(60,65,70,75,80,85)){
+    Ve=i
+    half=5
+    Vac.age=j
+    Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
+    lines(Cases$agey, Cases$Impact,col=topo.colors(j,alpha=1),xlim=c(Vac.age,90), lwd=2)
+  }
+}
+
+
+
+Ve =0.2 #first year Ve against VT IPD (currently age independent)
 half = 5 #half life of Vein years assuming exponential decay
-Vac.age = 65 #year of vaccination
+Vac.age = 60 #year of vaccination
 
 # model
-data.frame(age = 55:100,
-           Pop = 910000 - cumsum(rep(19,46))*1000,  # pup UK like
-           IPD.inc = 1.1^(1:46)) %>%                # IPD cases made up
-  mutate(IPD.cases = Pop*IPD.inc) %>%
-  mutate(VE = c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(46+55-Vac.age)))) %>%
-  mutate(Impact = VE * IPD.cases) -> dt
+Cases <- Cases %>% 
+  mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>%
+  mutate(Impact=VE*all.cases)
 
-dt$Impact %>% sum %>% print
+Cases$Impact %>% sum %>% print
+plot(Cases$agey, Cases$Impact)
+lines(Cases$agey, Cases$Impact)
+
+
+
 
