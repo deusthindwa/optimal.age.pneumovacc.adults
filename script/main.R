@@ -38,7 +38,7 @@ ggplot() +
   ylim(0,125) + xlim(55,90) +
   theme_bw()
 
-#generate IPD cases fron total pop and IPD incidence for each individual age
+#generate IPD cases from total pop and IPD incidence annually
 Cases <- data_frame(agey=seq(from=55,to=90,by=1)) %>% mutate(all.incid=predict(model.all,list(agey=agey))) %>%
 mutate(pcv13.incid=predict(model.pcv13,list(agey=agey))) %>% mutate(ppv23.incid=predict(model.ppv23,list(agey=agey)))
 Cases <- merge(Cases,POP)
@@ -63,8 +63,6 @@ for(i in c(0.5)){
     lines(Cases$agey, Cases$Impact,col=topo.colors(j,alpha=1),xlim=c(Vac.age,90), lwd=2)
   }
 }
-
-
 
 Ve =0.2 #first year Ve against VT IPD (currently age independent)
 half = 5 #half life of Vein years assuming exponential decay
