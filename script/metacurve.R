@@ -44,22 +44,48 @@ f <- function(parms, df){
 
 ans <- optim(par = c(50, -0.5), fn = f, df = df)
 
-A <- round(ans$par[1],2)
-B <- round(ans$par[2],4)
+ans_by_study <-
+    df %>% split(.$Study) %>%
+    map(~optim(par = c(50, -0.5), fn = f, df = .x)) %>%
+    map("par") %>%
+    map_df(.id = "Study", ~data.frame(A = .x[1], B = .x[2]))
 
-df %>%
-    #gather(key, value, Young, Old) %>%
-    ggplot(data=., aes(x=xmin, xend = xmax,
-                       color = Study)) +
-    geom_segment(aes(group = Study,
+df_by_study <- ans_by_study %>%
+    nest(data = c(A,B)) %>%
+    mutate(sim = map(data,
+                     .f = ~data.frame(t = seq(0,20)) %>%
+                         mutate(y = .x$A*exp(.x$B*t))))  %>%
+    unnest(sim) 
+
+A <- ans$par[1]
+B <- ans$par[2]
+
+VE_plot <- ggplot(data=df) +
+    geom_segment(aes(x=xmin, xend = xmax,
                      y = y, yend = y)) +
     stat_function(fun = function(parms, x){parms[1]*exp(parms[2]*x)},
-                  args = list(parms = c(ans$par)), inherit.aes = FALSE) +
+                  args = list(parms = c(ans$par)), inherit.aes = FALSE,
+                  alpha = 0.5) +
     ylim(c(0, NA)) +
+    geom_line(data= df_by_study, aes(x=t, y = y)) +
     theme_bw() +
     theme(legend.position = 'bottom') +
     xlab("Years since vaccination (t)") +
     ylab("Vaccine efficacy (VE, %)") +
     scale_color_brewer(palette = "Set1") +
     guides(col = guide_legend(ncol = 2)) +
-    ggtitle(label =  bquote(VE == .(A)*e^{.(B)*t}))
+    facet_wrap(~Study) +
+    geom_text(data = ans_by_study,
+              x = 15, y = 50, parse = T,
+              aes(label = paste("VE == ", round(A,1),
+                                "*e^{",round(B,3),
+                                "*t}"))) +
+    ggtitle(label =  bquote(VE == .(round(A,2))*e^{.(round(B,3))*t}))
+
+ggsave("output/VE_plot.pdf", plot = VE_plot,
+       width = 7, height = 7, unit="in")
+
+VE_table <- ans_by_study %>%
+    add_row(Study = "All", A = A, B = B)
+
+write_csv(x = VE_table, path = "output/VE_table.csv")
