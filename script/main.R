@@ -72,10 +72,40 @@ impact <- filter(VE_table,
          .id = "Study") %>%
   mutate(Impact = VE*cases)
 
-ggplot(data = impact,
-       aes(x = agey, y = Impact)) +
-  geom_line() +
+
+VE_by_Vac.age <- 
+  filter(VE_table,
+       Study %in% c("Andrews (2012)",
+                    "Djennad (2018)")) %>%
+  crossing(Vac.age = seq(55,85,by=5)) %>%
+  rowwise %>%
+  group_split %>%
+  map_df(~mutate(Cases, VE = 0.01*.x$A*exp(.x$B*(agey - .x$Vac.age + 1))) %>%
+        mutate(Vac.age = .x$Vac.age,
+               Study   = .x$Study)) %>%
+  mutate(value = ifelse(agey < Vac.age, 0, VE)) %>%
+  mutate(Impact = value*cases) 
+
+VE_by_Vac.age %>%
+  ggplot(data= ., aes(x=agey, y = Impact)) +
+  geom_line(aes(group = Vac.age)) + 
   facet_grid(Study ~ serogroup)
+
+lshtm_greens <- rev(c("#00BF6F","#0d5257"))
+
+impact_by_age_plot <- 
+  VE_by_Vac.age %>%
+  group_by(Study, serogroup, Vac.age) %>%
+  summarise(Impact = sum(Impact)) %>%
+  ggplot(data = ., aes(x = Vac.age, y= Impact)) +
+  geom_col(aes(fill = Study),
+           position = position_dodge()) + 
+  facet_grid(. ~ serogroup) +
+  theme_bw() +
+  xlab("Vaccination Age") +
+  scale_fill_manual(values = c("Andrews (2012)" = lshtm_greens[1],
+                               "Djennad (2018)" = lshtm_greens[2])) +
+  theme(legend.position = "bottom")
 
 Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
 plot(Cases$agey, Cases$Impact,type="l",col="blue", ylim=c(0,3e+06),xlim=c(Vac.age,90))
