@@ -1,25 +1,20 @@
-#load the require package
-require(tidyverse)
-require(curl)
-require(Hmisc)
+#load the require packages
+require(pacman)
+pacman::p_load(char = c("tidyverse", "curl", "Hmisc"))
 
 #load the IPD cases
 IPD <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_ipd_incid.csv")) 
 POP <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_total_pop.csv")) 
 
-#add age increment
-IPD$agey <- if_else(IPD$agegroup=="55-59",55,
-                      if_else(IPD$agegroup=="60-64",60,
-                              if_else(IPD$agegroup=="65-69",65,
-                                      if_else(IPD$agegroup=="70-74",70,
-                                              if_else(IPD$agegroup=="75-79",75,
-                                                      if_else(IPD$agegroup=="80-84",80,85))))))
+IPD <- mutate(IPD, agey = readr::parse_number(substr(agegroup,1,2)))
 
 #estimate the rest of parameters using a simple linear model
 theta0 <- min(IPD$incidence,na.rm=TRUE)*0.5  
 model0 <- lm(log(incidence-theta0) ~ agey, data=IPD)  
 alpha0 <- exp(coef(model0)[1])
-beta0 <- coef(model0)[2] 
+beta0  <- coef(model0)[2] 
+
+
 
 #Initial parameter values
 start <- list(alpha=alpha0, beta=beta0, theta=theta0)
@@ -40,7 +35,7 @@ ggplot() +
 
 #generate IPD cases from total pop and IPD incidence annually
 Cases <- data_frame(agey=seq(from=55,to=90,by=1)) %>% mutate(all.incid=predict(model.all,list(agey=agey))) %>%
-mutate(pcv13.incid=predict(model.pcv13,list(agey=agey))) %>% mutate(ppv23.incid=predict(model.ppv23,list(agey=agey)))
+  mutate(pcv13.incid=predict(model.pcv13,list(agey=agey))) %>% mutate(ppv23.incid=predict(model.ppv23,list(agey=agey)))
 Cases <- merge(Cases,POP)
 Cases$all.cases <- Cases$all.incid*Cases$ntotal
 Cases$pcv13.cases <- Cases$pcv13.incid*Cases$ntotal
