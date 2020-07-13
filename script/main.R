@@ -53,8 +53,9 @@ ggsave("output/incidence_plot.pdf", plot = incidence_plot,
        width = 7, height = 5, unit="in")
 
 #generate IPD cases from total pop and IPD incidence annually
+# table 7
 Cases <- inner_join(IPD_curves, POP) %>%
-  mutate(cases = incidence/100*ntotal)
+  mutate(cases = incidence/1e5*ntotal)
 
 #estimate vaccine impact against all IPD serotypes
 Ve      =  0.5
