@@ -62,7 +62,20 @@ Ve      =  0.5
 half    =  5
 Vac.age = 55
 
+VE_table <- read_csv("output/VE_table.csv")
 
+impact <- filter(VE_table,
+                 Study %in% c("Andrews (2012)",
+                              "Djennad (2018)")) %>%
+  split(.$Study) %>%
+  map_df(~mutate(Cases, VE = 0.01*.$A*exp(.$B*(agey - Vac.age + 1))),
+         .id = "Study") %>%
+  mutate(Impact = VE*cases)
+
+ggplot(data = impact,
+       aes(x = agey, y = Impact)) +
+  geom_line() +
+  facet_grid(Study ~ serogroup)
 
 Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
 plot(Cases$agey, Cases$Impact,type="l",col="blue", ylim=c(0,3e+06),xlim=c(Vac.age,90))
