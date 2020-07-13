@@ -14,37 +14,55 @@ model0 <- lm(log(incidence-theta0) ~ agey, data=IPD)
 alpha0 <- exp(coef(model0)[1])
 beta0  <- coef(model0)[2] 
 
-
-
 #Initial parameter values
 start <- list(alpha=alpha0, beta=beta0, theta=theta0)
 
 #fit nonlinear (weighted) least-squares estimates of the parameters using Gauss-Newton algorithm
-model.all <- nls(incidence ~ alpha * exp(beta*agey) + theta, start=start, data=na.omit(subset(IPD,serogroup=="All IPD cases")), nls.control(maxiter=200))
-model.pcv13 <- nls(incidence ~ alpha * exp(beta*agey) + theta, start=start, data=na.omit(subset(IPD,serogroup=="PCV13 IPD")), nls.control(maxiter=200))
-model.ppv23 <- nls(incidence ~ alpha * exp(beta*agey) + theta, start=start, data=na.omit(subset(IPD,serogroup=="PPV23 IPD")), nls.control(maxiter=200))
+
+IPD_models <- IPD %>% 
+  split(.$serogroup) %>%
+  map(~nls(data = .x, 
+           incidence ~ exp(log_alpha) * exp(exp(log_beta)*agey) + exp(log_theta),
+           nls.control(maxiter=200),
+           start = list(log_alpha = log(alpha0),
+                        log_beta  = log(beta0),
+                        log_theta = log(theta0))))
+
+IPD_x <- data.frame(agey = seq(55, 90, by = 1))
+
+IPD_curves <-
+  IPD_models %>%
+  map_df(~mutate(IPD_x, incidence = predict(object = .x, 
+                                            newdata = IPD_x)),
+         .id = "serogroup")
 
 #plot fitted curves with backward or forward extrapolation
-ggplot() + 
-  geom_point(aes(x=IPD$agey,y=IPD$incidence,color=IPD$serogroup), size=2.5) + 
-  geom_line(aes(x=seq(from=55,to=90,by=1),y=predict(model.all,list(agey=seq(from=55,to=90,by=1)))), color='#F8766D', size=1) + 
-  geom_line(aes(x=seq(from=55,to=90,by=1),y=predict(model.pcv13,list(agey=seq(from=55,to=90,by=1)))), color='#00BA38', size=1) + 
-  geom_line(aes(x=seq(from=55,to=90,by=1),y=predict(model.ppv23,list(agey=seq(from=55,to=90,by=1)))), color='#619CFF', size=1) + 
-  ylim(0,125) + xlim(55,90) +
-  theme_bw()
+incidence_plot <- ggplot(data = IPD,
+                         aes(x = agey,
+                             y = incidence,
+                             color = serogroup)) + 
+  geom_point(size=2.5) + 
+  geom_line(data = IPD_curves) +
+  ylim(c(0, NA)) + 
+  theme_bw() +
+  xlab("Age of vaccination") +
+  ylab("Incidence (%)") +
+  theme(legend.position = "bottom") 
+
+ggsave("output/incidence_plot.pdf", plot = incidence_plot,
+       width = 7, height = 5, unit="in")
 
 #generate IPD cases from total pop and IPD incidence annually
-Cases <- data_frame(agey=seq(from=55,to=90,by=1)) %>% mutate(all.incid=predict(model.all,list(agey=agey))) %>%
-  mutate(pcv13.incid=predict(model.pcv13,list(agey=agey))) %>% mutate(ppv23.incid=predict(model.ppv23,list(agey=agey)))
-Cases <- merge(Cases,POP)
-Cases$all.cases <- Cases$all.incid*Cases$ntotal
-Cases$pcv13.cases <- Cases$pcv13.incid*Cases$ntotal
-Cases$ppv23.cases <- Cases$ppv23.incid*Cases$ntotal
+Cases <- inner_join(IPD_curves, POP) %>%
+  mutate(cases = incidence/100*ntotal)
 
 #estimate vaccine impact against all IPD serotypes
-Ve=0.5
-half=5
-Vac.age=55
+Ve      =  0.5
+half    =  5
+Vac.age = 55
+
+
+
 Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
 plot(Cases$agey, Cases$Impact,type="l",col="blue", ylim=c(0,3e+06),xlim=c(Vac.age,90))
 points(Cases$Impact %>% sum)
