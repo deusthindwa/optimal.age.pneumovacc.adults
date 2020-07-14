@@ -26,8 +26,13 @@ dat_ <- lapply(X = dat, FUN = function(x){
               .funs = parse_number) %>%
     mutate(xmax = ifelse(is.na(xmax), 20, xmax))
 
+<<<<<<< HEAD
 df <- dat_ %>% dplyr::filter(Study != "Wright (2013)") %>%
   dplyr::rename(y = Mean)
+=======
+df <- dat_ %>% filter(Study != "Wright (2013)") %>%
+    rename(y = "Mean")
+>>>>>>> c9f0da1f56abfd5d65a742bc6dfdcb3e617e6391
 
 f <- function(parms, df){
     
@@ -88,6 +93,7 @@ ggsave("output/VE_plot.pdf", plot = VE_plot,
 VE_table <- ans_by_study %>%
     add_row(Study = "All", A = A, B = B) %>%
     mutate(`Half-life` = -log(2)/B) %>%
-    rename(VE = A, rate = B)
+    rename(VE = A, rate = B) %>%
+    mutate(VE = VE/100)
 
 write_csv(x = VE_table, path = "output/VE_table.csv")
