@@ -1,16 +1,15 @@
 #load the require packages
-require(pacman)
-pacman::p_load(char = c("tidyverse", "curl", "Hmisc", "here"))
+if (!require(pacman)){
+  install.packages("pacman")
+}
+pacman::p_load(char = c("tidyverse", "curl", "Hmisc", "here",
+                        "scales", "magrittr"))
 
 setwd(here::here())
 
 #load the IPD cases
 
 ipd    <- read_csv(here("data", "EW_ipd_incid.csv"))
-
-pop.ew <- read_csv(here("data", "EW_total_pop.csv"))
-
-pop.mw <- read_csv(here("data", "MW_total_pop.csv")) 
 
 source(here("script", "pops.R"))
 
