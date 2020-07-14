@@ -46,23 +46,24 @@ Cases$all.cases <- Cases$all.incid*Cases$ntotal
 Cases$pcv13.cases <- Cases$pcv13.incid*Cases$ntotal
 Cases$ppv23.cases <- Cases$ppv23.incid*Cases$ntotal
 
-#estimate vaccine impact against all IPD serotypes
-Ve=0.5
+#estimate baseline age-dependent vaccine efficacy against PPV23 serotypes
+Cases$Ve <- if_else(Cases$agey>=55 & Cases$agey<65, 0.17,
+                    if_else(Cases$agey>=65 & Cases$agey<=75, 0.25, 0.35))
+
+#estimate vaccine impact against PPV23 serotypes
+#Ve=0.5
 half=5
 Vac.age=55
 Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
-plot(Cases$agey, Cases$Impact,type="l",col="blue", ylim=c(0,3e+06),xlim=c(Vac.age,90))
-points(Cases$Impact %>% sum)
+plot(Cases$agey, Cases$Impact,type="l",col="blue", ylim=c(0,1e+07),xlim=c(Vac.age,90))
 
-for(i in c(0.5)){
-  for(j in c(60,65,70,75,80,85)){
+for(j in c(60,65,70,75,80,85)){
     Ve=i
     half=5
     Vac.age=j
     Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
-    lines(Cases$agey, Cases$Impact,col=topo.colors(j,alpha=1),xlim=c(Vac.age,90), lwd=2)
+    lines(Cases$agey, Cases$Impact,col=topo.colors(j,alpha=1),xlim=c(Vac.age,87), lwd=2)
   }
-}
 
 Ve =0.2 #first year Ve against VT IPD (currently age independent)
 half = 5 #half life of Vein years assuming exponential decay
