@@ -26,8 +26,8 @@ dat_ <- lapply(X = dat, FUN = function(x){
               .funs = parse_number) %>%
     mutate(xmax = ifelse(is.na(xmax), 20, xmax))
 
-df <- dat_ %>% filter(Study != "Wright (2013)") %>%
-    rename(y = Mean)
+df <- dat_ %>% dplyr::filter(Study != "Wright (2013)") %>%
+  dplyr::rename(y = Mean)
 
 f <- function(parms, df){
     
