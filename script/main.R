@@ -1,13 +1,18 @@
 #load the require packages
 require(pacman)
-pacman::p_load(char = c("tidyverse", "curl", "Hmisc"))
+pacman::p_load(char = c("tidyverse", "curl", "Hmisc", "here"))
+
+setwd(here::here())
 
 #load the IPD cases
-ipd <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_ipd_incid.csv")) 
-pop.ew <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_total_pop.csv")) 
-pop.mw <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/MW_total_pop.csv")) 
 
-source("pops.R")
+ipd    <- read_csv(here("data", "EW_ipd_incid.csv"))
+
+pop.ew <- read_csv(here("data", "EW_total_pop.csv"))
+
+pop.mw <- read_csv(here("data", "MW_total_pop.csv")) 
+
+source(here("script", "pops.R"))
 
 ipd <- mutate(ipd, agey = readr::parse_number(substr(agegroup,1,2)))
 
@@ -17,12 +22,9 @@ model0 <- lm(log(incidence-theta0) ~ agey, data=ipd)
 alpha0 <- exp(coef(model0)[1])
 beta0  <- coef(model0)[2] 
 
-#Initial parameter values
-start <- list(alpha=alpha0, beta=beta0, theta=theta0)
-
 #fit nonlinear (weighted) least-squares estimates of the parameters using Gauss-Newton algorithm
 
-IPD_models <- IPD %>% 
+ipd_models <- ipd %>% 
   split(.$serogroup) %>%
   map(~nls(data = .x, 
            incidence ~ exp(log_alpha) * exp(exp(log_beta)*agey) + exp(log_theta),
@@ -31,21 +33,21 @@ IPD_models <- IPD %>%
                         log_beta  = log(beta0),
                         log_theta = log(theta0))))
 
-IPD_x <- data.frame(agey = seq(55, 90, by = 1))
+ipd_x <- data.frame(agey = seq(55, 90, by = 1))
 
-IPD_curves <-
-  IPD_models %>%
-  map_df(~mutate(IPD_x, incidence = predict(object = .x, 
-                                            newdata = IPD_x)),
+ipd_curves <-
+  ipd_models %>%
+  map_df(~mutate(ipd_x, incidence = predict(object = .x, 
+                                            newdata = ipd_x)),
          .id = "serogroup")
 
 #plot fitted curves with backward or forward extrapolation
-incidence_plot <- ggplot(data = IPD,
+incidence_plot <- ggplot(data = ipd,
                          aes(x = agey,
                              y = incidence,
                              color = serogroup)) + 
   geom_point(size=2.5) + 
-  geom_line(data = IPD_curves) +
+  geom_line(data = ipd_curves) +
   ylim(c(0, NA)) + 
   theme_bw() +
   xlab("Age of vaccination") +
@@ -53,29 +55,19 @@ incidence_plot <- ggplot(data = IPD,
   theme(legend.position = "bottom") +
   scale_color_brewer(palette = "Dark2")
 
-ggsave("output/incidence_plot.pdf", plot = incidence_plot,
+ggsave(here("output","incidence_plot.pdf"),
+       plot = incidence_plot,
        width = 7, height = 5, unit="in")
 
 #generate IPD cases from total pop and IPD incidence annually
 # table 7
-Cases <- inner_join(IPD_curves, POP, by = "agey") %>%
+Cases <- inner_join(ipd_curves, countries_df, by = "agey") %>%
   mutate(cases = incidence/1e5*ntotal)
 
 #estimate vaccine impact against all IPD serotypes
-Ve      =  0.5
-half    =  5
-Vac.age = 55
 
-VE_table <- read_csv("output/VE_table.csv")
-
-impact <- filter(VE_table,
-                 Study %in% c("Andrews (2012)",
-                              "Djennad (2018)")) %>%
-  split(.$Study) %>%
-  map_df(~mutate(Cases, VE = 0.01*.$VE*exp(.$rate*(agey - Vac.age + 1))),
-         .id = "Study") %>%
-  mutate(Impact = VE*cases)
-
+source(here("script", "metacurve.R"))
+#VE_table <- read_csv(here("output","VE_table.csv"))
 
 VE_by_Vac.age <- 
   filter(VE_table,
@@ -94,11 +86,12 @@ VE_by_Vac.age <-
 
 impact_by_age_plot <- 
   VE_by_Vac.age %>%
-  group_by(Study, serogroup, Vac.age) %>%
+  group_by(Study, serogroup, Vac.age, Country) %>%
   summarise(Impact = sum(Impact)) %>%
   ggplot(data = ., aes(x = Vac.age, y= Impact)) +
   geom_line(aes(color = Study)) + 
-  facet_grid(. ~ serogroup) +
+  facet_grid(Country ~ serogroup,
+             scales = "free_y") +
   theme_bw() +
   scale_y_continuous(limits = c(0,NA)) +
   xlab("Vaccination Age") +
@@ -106,5 +99,6 @@ impact_by_age_plot <-
   scale_color_brewer(palette= "Set2") +
   theme(legend.position = "bottom")
 
-ggsave(filename = "output/impact_by_vac_age.pdf", plot = impact_by_age_plot,
+ggsave(filename = "output/impact_by_vac_age.pdf", 
+       plot = impact_by_age_plot,
        width = 7, height = 3.5, units = "in")
