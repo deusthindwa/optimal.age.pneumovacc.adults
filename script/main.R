@@ -57,6 +57,25 @@ ggsave(here("output","incidence_plot.pdf"),
        plot = incidence_plot,
        width = 7, height = 5, unit="in")
 
+#plot scaled incidence
+ipd_scaled <- ipd %>% group_by(serogroup) %>%
+  mutate(p = incidence/sum(incidence))
+
+incidence_plot <- ggplot(data = ipd_scaled,
+                         aes(x = agey,
+                             y = p,
+                             color = serogroup)) + 
+  geom_line() +
+  theme_bw() +
+  xlab("Age (years)") +
+  ylab("Scaled incidence") +
+  theme(legend.position = "bottom") +
+  scale_color_brewer(palette = "Dark2")
+
+ggsave(here("output","scaled_plot.pdf"),
+       plot = incidence_plot,
+       width = 7, height = 5, unit="in")
+
 #generate IPD cases from total pop and IPD incidence annually
 # table 7
 Cases <- inner_join(ipd_curves, countries_df, by = "agey") %>%

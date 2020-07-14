@@ -17,7 +17,7 @@ countries_plot <- ggplot(data = countries_df,
            y = p)) +
   geom_col(aes(fill = Country),
            position = position_dodge()) +
-  scale_x_continuous(breaks  = scales::breaks_width(5)) + 
+  scale_x_continuous(breaks  = scales::pretty_breaks(5)) + 
   scale_y_continuous(labels  = scales::percent,
                      limits = c(0, NA)) + 
   theme_bw() + 
