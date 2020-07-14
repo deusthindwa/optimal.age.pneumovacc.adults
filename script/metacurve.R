@@ -27,7 +27,7 @@ dat_ <- lapply(X = dat, FUN = function(x){
     mutate(xmax = ifelse(is.na(xmax), 20, xmax))
 
 df <- dat_ %>% filter(Study != "Wright (2013)") %>%
-    rename(y = Mean)
+    rename(y = "Mean")
 
 f <- function(parms, df){
     

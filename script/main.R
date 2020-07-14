@@ -2,7 +2,9 @@
 if (!require(pacman)){
   install.packages("pacman")
 }
-pacman::p_load(char = c("tidyverse", "curl", "Hmisc", "here",
+pacman::p_load(char = c("tidyverse", "curl",
+                        #"Hmisc",
+                        "here",
                         "scales", "magrittr"))
 
 setwd(here::here())
