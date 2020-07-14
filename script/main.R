@@ -61,6 +61,7 @@ ggsave(here("output","incidence_plot.pdf"),
 #generate IPD cases from total pop and IPD incidence annually
 # table 7
 Cases <- inner_join(ipd_curves, countries_df, by = "agey") %>%
+  dplyr::filter(serogroup != "All serotypes") %>%
   mutate(cases = incidence/1e5*ntotal)
 
 #estimate vaccine impact against all IPD serotypes
@@ -68,19 +69,28 @@ Cases <- inner_join(ipd_curves, countries_df, by = "agey") %>%
 source(here("script", "metacurve.R"))
 #VE_table <- read_csv(here("output","VE_table.csv"))
 
+initial_VE <- function(age, serogroup){
+  # age-dependent vaccine efficacy at time of vaccination
+  # may be superseded
+  dplyr::case_when(serogroup == "PCV13" ~ 0.7,
+                   age >= 55 ~ 0.17,
+                   age >= 65 ~ 0.25,
+                   age >= 75 ~ 0.35,
+                   TRUE    ~ NA_real_)
+}
+
 VE_by_Vac.age <- 
-  filter(VE_table,
-       Study %in% c("Andrews (2012)",
-                    "Djennad (2018)",
-                    "All")) %>%
-  mutate(Study = fct_recode(factor(Study), c("Pooled" = "All"))) %>%
+  dplyr::filter(VE_table,
+                Study %in% c("Andrews (2012)",
+                             "Djennad (2018)",
+                             "All")) %>%
+  mutate(Study = fct_recode(factor(Study), c("Pooled" = "All")),
+         Study = fct_inorder(Study)) %>%
   crossing(Vac.age = seq(55, 85, by=5)) %>%
-  rowwise %>%
-  group_split %>%
-  map_df(~mutate(Cases, VE = 0.01*.x$VE*exp(.x$rate*(agey - .x$Vac.age + 1))) %>%
-        mutate(Vac.age = .x$Vac.age,
-               Study   = .x$Study)) %>%
-  mutate(value = ifelse(agey < Vac.age, 0, VE)) %>%
+  crossing(Cases) %>%
+  mutate(VE = initial_VE(Vac.age, serogroup)) %>%
+  mutate(Vaccine_Efficacy = VE*exp(rate*(agey - Vac.age + 1))) %>%
+  mutate(value = ifelse(agey < Vac.age, 0, Vaccine_Efficacy)) %>%
   mutate(Impact = value*cases) 
 
 impact_by_age_plot <- 
@@ -88,16 +98,18 @@ impact_by_age_plot <-
   group_by(Study, serogroup, Vac.age, Country) %>%
   summarise(Impact = sum(Impact)) %>%
   ggplot(data = ., aes(x = Vac.age, y= Impact)) +
-  geom_line(aes(color = Study)) + 
-  facet_grid(Country ~ serogroup,
+  geom_line(aes(color = serogroup)) + 
+  facet_grid(Country ~ Study,
              scales = "free_y") +
   theme_bw() +
   scale_y_continuous(limits = c(0,NA)) +
   xlab("Vaccination Age") +
   ylab("Impact (expected total cases averted)") +
-  scale_color_brewer(palette= "Set2") +
+  scale_color_brewer(palette= "Set2",
+                     name = "Vaccine serotypes"
+                     ) +
   theme(legend.position = "bottom")
 
 ggsave(filename = "output/impact_by_vac_age.pdf", 
        plot = impact_by_age_plot,
-       width = 7, height = 3.5, units = "in")
+       width = 7, height = 4, units = "in")
