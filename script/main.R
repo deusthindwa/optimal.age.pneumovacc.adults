@@ -1,13 +1,17 @@
 #load the require packages
-require(pacman)
-pacman::p_load(char = c("tidyverse", "curl", "Hmisc"))
+if (!require(pacman)){
+  install.packages("pacman")
+}
+pacman::p_load(char = c("tidyverse", "curl", "Hmisc", "here",
+                        "scales", "magrittr"))
+
+setwd(here::here())
 
 #load the IPD cases
-ipd <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_ipd_incid.csv")) 
-pop.ew <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_total_pop.csv")) 
-pop.mw <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/MW_total_pop.csv")) 
 
-source("pops.R")
+ipd    <- read_csv(here("data", "EW_ipd_incid.csv"))
+
+source(here("script", "pops.R"))
 
 ipd <- mutate(ipd, agey = readr::parse_number(substr(agegroup,1,2)))
 
@@ -17,61 +21,95 @@ model0 <- lm(log(incidence-theta0) ~ agey, data=ipd)
 alpha0 <- exp(coef(model0)[1])
 beta0  <- coef(model0)[2] 
 
-#Initial parameter values
-start <- list(alpha=alpha0, beta=beta0, theta=theta0)
-
 #fit nonlinear (weighted) least-squares estimates of the parameters using Gauss-Newton algorithm
-model.all <- nls(incidence ~ alpha * exp(beta*agey) + theta, start=start, data=na.omit(subset(ipd,serogroup=="All ipd cases")), nls.control(maxiter=200))
-model.pcv13 <- nls(incidence ~ alpha * exp(beta*agey) + theta, start=start, data=na.omit(subset(ipd,serogroup=="PCV13 ipd")), nls.control(maxiter=200))
-model.ppv23 <- nls(incidence ~ alpha * exp(beta*agey) + theta, start=start, data=na.omit(subset(ipd,serogroup=="PPV23 ipd")), nls.control(maxiter=200))
+
+ipd_models <- ipd %>% 
+  split(.$serogroup) %>%
+  map(~nls(data = .x, 
+           incidence ~ exp(log_alpha) * exp(exp(log_beta)*agey) + exp(log_theta),
+           nls.control(maxiter=200),
+           start = list(log_alpha = log(alpha0),
+                        log_beta  = log(beta0),
+                        log_theta = log(theta0))))
+
+ipd_x <- data.frame(agey = seq(55, 90, by = 1))
+
+ipd_curves <-
+  ipd_models %>%
+  map_df(~mutate(ipd_x, incidence = predict(object = .x, 
+                                            newdata = ipd_x)),
+         .id = "serogroup")
 
 #plot fitted curves with backward or forward extrapolation
-ggplot() + 
-  geom_point(aes(x=ipd$agey,y=ipd$incidence,color=ipd$serogroup), size=2.5) + 
-  geom_line(aes(x=seq(from=55,to=90,by=1),y=predict(model.all,list(agey=seq(from=55,to=90,by=1)))), color='#F8766D', size=1) + 
-  geom_line(aes(x=seq(from=55,to=90,by=1),y=predict(model.pcv13,list(agey=seq(from=55,to=90,by=1)))), color='#00BA38', size=1) + 
-  geom_line(aes(x=seq(from=55,to=90,by=1),y=predict(model.ppv23,list(agey=seq(from=55,to=90,by=1)))), color='#619CFF', size=1) + 
-  ylim(0,125) + xlim(55,90) +
-  theme_bw()
+incidence_plot <- ggplot(data = ipd,
+                         aes(x = agey,
+                             y = incidence,
+                             color = serogroup)) + 
+  geom_point(size=2.5) + 
+  geom_line(data = ipd_curves) +
+  ylim(c(0, NA)) + 
+  theme_bw() +
+  xlab("Age of vaccination") +
+  ylab("Incidence (cases per 100,000)") +
+  theme(legend.position = "bottom") +
+  scale_color_brewer(palette = "Dark2")
 
-#generate ipd cases from total pop and ipd incidence annually
-Cases <- data_frame(agey=seq(from=55,to=90,by=1)) %>% mutate(all.incid=predict(model.all,list(agey=agey))) %>%
-  mutate(pcv13.incid=predict(model.pcv13,list(agey=agey))) %>% mutate(ppv23.incid=predict(model.ppv23,list(agey=agey)))
-Cases <- merge(Cases,pop.ew)
-Cases$all.cases <- Cases$all.incid*Cases$ntotal
-Cases$pcv13.cases <- Cases$pcv13.incid*Cases$ntotal
-Cases$ppv23.cases <- Cases$ppv23.incid*Cases$ntotal
+ggsave(here("output","incidence_plot.pdf"),
+       plot = incidence_plot,
+       width = 7, height = 5, unit="in")
 
-#estimate vaccine impact against all ipd serotypes
-Ve=0.5
-half=5
-Vac.age=55
-Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
-plot(Cases$agey, Cases$Impact,type="l",col="blue", ylim=c(0,3e+06),xlim=c(Vac.age,90))
-points(Cases$Impact %>% sum)
+#generate IPD cases from total pop and IPD incidence annually
+# table 7
+Cases <- inner_join(ipd_curves, countries_df, by = "agey") %>%
+  dplyr::filter(serogroup != "All serotypes") %>%
+  mutate(cases = incidence/1e5*ntotal)
 
-for(i in c(0.5)){
-  for(j in c(60,65,70,75,80,85)){
-    Ve=i
-    half=5
-    Vac.age=j
-    Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
-    lines(Cases$agey, Cases$Impact,col=topo.colors(j,alpha=1),xlim=c(Vac.age,90), lwd=2)
-  }
+#estimate vaccine impact against all IPD serotypes
+
+source(here("script", "metacurve.R"))
+#VE_table <- read_csv(here("output","VE_table.csv"))
+
+initial_VE <- function(age, serogroup){
+  # age-dependent vaccine efficacy at time of vaccination
+  # may be superseded
+  dplyr::case_when(serogroup == "PCV13" ~ 0.7,
+                   age >= 55 ~ 0.17,
+                   age >= 65 ~ 0.25,
+                   age >= 75 ~ 0.35,
+                   TRUE    ~ NA_real_)
 }
 
-Ve =0.2 #first year Ve against VT ipd (currently age independent)
-half = 5 #half life of Vein years assuming exponential decay
-Vac.age = 60 #year of vaccination
+VE_by_Vac.age <- 
+  dplyr::filter(VE_table,
+                Study %in% c("Andrews (2012)",
+                             "Djennad (2018)",
+                             "All")) %>%
+  mutate(Study = fct_recode(factor(Study), c("Pooled" = "All")),
+         Study = fct_inorder(Study)) %>%
+  crossing(Vac.age = seq(55, 85, by=5)) %>%
+  crossing(Cases) %>%
+  mutate(VE = initial_VE(Vac.age, serogroup)) %>%
+  mutate(Vaccine_Efficacy = VE*exp(rate*(agey - Vac.age + 1))) %>%
+  mutate(value = ifelse(agey < Vac.age, 0, Vaccine_Efficacy)) %>%
+  mutate(Impact = value*cases) 
 
-# model
-Cases <- Cases %>% 
-  mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>%
-  mutate(Impact=VE*all.cases)
+impact_by_age_plot <- 
+  VE_by_Vac.age %>%
+  group_by(Study, serogroup, Vac.age, Country) %>%
+  summarise(Impact = sum(Impact)) %>%
+  ggplot(data = ., aes(x = Vac.age, y= Impact)) +
+  geom_line(aes(color = serogroup)) + 
+  facet_grid(Country ~ Study,
+             scales = "free_y") +
+  theme_bw() +
+  scale_y_continuous(limits = c(0,NA)) +
+  xlab("Vaccination Age") +
+  ylab("Impact (expected total cases averted)") +
+  scale_color_brewer(palette= "Set2",
+                     name = "Vaccine serotypes"
+  ) +
+  theme(legend.position = "bottom")
 
-Cases$Impact %>% sum %>% print
-plot(Cases$agey, Cases$Impact)
-lines(Cases$agey, Cases$Impact)
-
-
-
+ggsave(filename = "output/impact_by_vac_age.pdf", 
+       plot = impact_by_age_plot,
+       width = 7, height = 4, units = "in")
