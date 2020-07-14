@@ -22,7 +22,6 @@ alpha0 <- exp(coef(model0)[1])
 beta0  <- coef(model0)[2] 
 
 #fit nonlinear (weighted) least-squares estimates of the parameters using Gauss-Newton algorithm
-
 ipd_models <- ipd %>% 
   split(.$serogroup) %>%
   map(~nls(data = .x, 
@@ -106,18 +105,9 @@ impact_by_age_plot <-
   xlab("Vaccination Age") +
   ylab("Impact (expected total cases averted)") +
   scale_color_brewer(palette= "Set2",
-                     name = "Vaccine serotypes"
-<<<<<<< HEAD
-  ) +
-=======
-                     ) +
->>>>>>> b22f82ebfc045b0bc2103038da3834952e6deb77
+                     name = "Vaccine serotypes") +
   theme(legend.position = "bottom")
 
 ggsave(filename = "output/impact_by_vac_age.pdf", 
        plot = impact_by_age_plot,
-<<<<<<< HEAD
        width = 7, height = 4, units = "in")
-=======
-       width = 7, height = 4, units = "in")
->>>>>>> b22f82ebfc045b0bc2103038da3834952e6deb77
