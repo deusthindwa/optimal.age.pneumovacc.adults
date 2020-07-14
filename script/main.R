@@ -3,14 +3,17 @@ require(pacman)
 pacman::p_load(char = c("tidyverse", "curl", "Hmisc"))
 
 #load the IPD cases
-IPD <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_ipd_incid.csv")) 
-POP <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_total_pop.csv")) 
+ipd <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_ipd_incid.csv")) 
+pop.ew <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/EW_total_pop.csv")) 
+pop.mw <- read.csv(curl("https://raw.githubusercontent.com/deusthindwa/optimal.age.pneumovacc.adults/master/data/MW_total_pop.csv")) 
 
-IPD <- mutate(IPD, agey = readr::parse_number(substr(agegroup,1,2)))
+source("pops.R")
+
+ipd <- mutate(ipd, agey = readr::parse_number(substr(agegroup,1,2)))
 
 #estimate the rest of parameters using a simple linear model
-theta0 <- min(IPD$incidence,na.rm=TRUE)*0.5  
-model0 <- lm(log(incidence-theta0) ~ agey, data=IPD)  
+theta0 <- min(ipd$incidence,na.rm=TRUE)*0.5  
+model0 <- lm(log(incidence-theta0) ~ agey, data=ipd)  
 alpha0 <- exp(coef(model0)[1])
 beta0  <- coef(model0)[2] 
 
