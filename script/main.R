@@ -46,15 +46,16 @@ incidence_plot <- ggplot(data = IPD,
   ylim(c(0, NA)) + 
   theme_bw() +
   xlab("Age of vaccination") +
-  ylab("Incidence (%)") +
-  theme(legend.position = "bottom") 
+  ylab("Incidence (cases per 100,000)") +
+  theme(legend.position = "bottom") +
+  scale_color_brewer(palette = "Dark2")
 
 ggsave("output/incidence_plot.pdf", plot = incidence_plot,
        width = 7, height = 5, unit="in")
 
 #generate IPD cases from total pop and IPD incidence annually
 # table 7
-Cases <- inner_join(IPD_curves, POP) %>%
+Cases <- inner_join(IPD_curves, POP, by = "agey") %>%
   mutate(cases = incidence/1e5*ntotal)
 
 #estimate vaccine impact against all IPD serotypes
@@ -68,7 +69,7 @@ impact <- filter(VE_table,
                  Study %in% c("Andrews (2012)",
                               "Djennad (2018)")) %>%
   split(.$Study) %>%
-  map_df(~mutate(Cases, VE = 0.01*.$A*exp(.$B*(agey - Vac.age + 1))),
+  map_df(~mutate(Cases, VE = 0.01*.$VE*exp(.$rate*(agey - Vac.age + 1))),
          .id = "Study") %>%
   mutate(Impact = VE*cases)
 
@@ -76,64 +77,31 @@ impact <- filter(VE_table,
 VE_by_Vac.age <- 
   filter(VE_table,
        Study %in% c("Andrews (2012)",
-                    "Djennad (2018)")) %>%
-  crossing(Vac.age = seq(55,85,by=5)) %>%
+                    "Djennad (2018)",
+                    "All")) %>%
+  mutate(Study = fct_recode(factor(Study), c("Pooled" = "All"))) %>%
+  crossing(Vac.age = seq(55, 85, by=5)) %>%
   rowwise %>%
   group_split %>%
-  map_df(~mutate(Cases, VE = 0.01*.x$A*exp(.x$B*(agey - .x$Vac.age + 1))) %>%
+  map_df(~mutate(Cases, VE = 0.01*.x$VE*exp(.x$rate*(agey - .x$Vac.age + 1))) %>%
         mutate(Vac.age = .x$Vac.age,
                Study   = .x$Study)) %>%
   mutate(value = ifelse(agey < Vac.age, 0, VE)) %>%
   mutate(Impact = value*cases) 
-
-VE_by_Vac.age %>%
-  ggplot(data= ., aes(x=agey, y = Impact)) +
-  geom_line(aes(group = Vac.age)) + 
-  facet_grid(Study ~ serogroup)
-
-lshtm_greens <- rev(c("#00BF6F","#0d5257"))
 
 impact_by_age_plot <- 
   VE_by_Vac.age %>%
   group_by(Study, serogroup, Vac.age) %>%
   summarise(Impact = sum(Impact)) %>%
   ggplot(data = ., aes(x = Vac.age, y= Impact)) +
-  geom_col(aes(fill = Study),
-           position = position_dodge()) + 
+  geom_line(aes(color = Study)) + 
   facet_grid(. ~ serogroup) +
   theme_bw() +
+  scale_y_continuous(limits = c(0,NA)) +
   xlab("Vaccination Age") +
-  scale_fill_manual(values = c("Andrews (2012)" = lshtm_greens[1],
-                               "Djennad (2018)" = lshtm_greens[2])) +
+  ylab("Impact (expected total cases averted)") +
+  scale_color_brewer(palette= "Set2") +
   theme(legend.position = "bottom")
 
-Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
-plot(Cases$agey, Cases$Impact,type="l",col="blue", ylim=c(0,3e+06),xlim=c(Vac.age,90))
-points(Cases$Impact %>% sum)
-
-for(i in c(0.5)){
-  for(j in c(60,65,70,75,80,85)){
-    Ve=i
-    half=5
-    Vac.age=j
-    Cases <- Cases %>% mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>% mutate(Impact=VE*all.cases)
-    lines(Cases$agey, Cases$Impact,col=topo.colors(j,alpha=1),xlim=c(Vac.age,90), lwd=2)
-  }
-}
-
-Ve =0.2 #first year Ve against VT IPD (currently age independent)
-half = 5 #half life of Vein years assuming exponential decay
-Vac.age = 60 #year of vaccination
-
-# model
-Cases <- Cases %>% 
-  mutate(VE=c(rep(0,Vac.age-55),Ve*2^(-1/half*1:(36+55-Vac.age)))) %>%
-  mutate(Impact=VE*all.cases)
-
-Cases$Impact %>% sum %>% print
-plot(Cases$agey, Cases$Impact)
-lines(Cases$agey, Cases$Impact)
-
-
-
-
+ggsave(filename = "output/impact_by_vac_age.pdf", plot = impact_by_age_plot,
+       width = 7, height = 3.5, units = "in")
