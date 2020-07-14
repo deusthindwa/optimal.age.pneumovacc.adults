@@ -1,17 +1,31 @@
 
 #ggplot comparing % populations in England/Wales versus Malawi
 
+pop.ew <- read_csv(here("data", "EW_total_pop.csv"))
+pop.mw <- read_csv(here("data", "MW_total_pop.csv")) 
+
 countries <- c("England/Wales"="blue", "Malawi"="red")
 
-A <- ggplot() +
-  geom_line(aes(x=pop.ew$agey, y=pop.ew$ntotal*100/sum(pop.ew$ntotal), color="England/Wales"), size=0.8) + 
-  geom_line(aes(x=pop.mw$agey, y=pop.mw$ntotal*100/sum(pop.mw$ntotal), color="Malawi"), size=0.8) + 
-  scale_x_continuous(breaks = seq(55,90,5)) + 
-  scale_y_continuous(breaks = seq(0,6.5,0.5)) + 
+countries_df <- list(`England/Wales` = pop.ew,
+                     `Malawi`        = pop.mw) %>%
+  bind_rows(.id = "Country") %>%
+  group_by(Country) %>%
+  mutate(p = ntotal/sum(ntotal))
+
+countries_plot <- ggplot(data = countries_df,
+       aes(x = agey,
+           y = p)) +
+  geom_col(aes(fill = Country),
+           position = position_dodge()) +
+  scale_x_continuous(breaks  = scales::breaks_width(5)) + 
+  scale_y_continuous(labels  = scales::percent,
+                     limits = c(0, NA)) + 
   theme_bw() + 
   labs(title="", x="Age (years)", y="Population %", color="Countries") +
-  scale_color_manual(values=countries) +
-  theme(axis.text.x=element_text(face="bold", size=10, color="black"), axis.text.y=element_text(face="bold", size=10, color="black"))
+  #scale_color_manual(values=countries) +
+  theme(axis.text=element_text(face="bold", size=10, color="black"),
+        legend.position = "bottom")
 
-print(ggarrange(A,ncol=1))
-remove(A,countries)
+ggsave(filename = here("output","countries.pdf"), 
+       plot = countries_plot,
+       width = 7, height = 3.5, units = "in")

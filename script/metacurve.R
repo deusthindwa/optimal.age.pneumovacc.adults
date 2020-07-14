@@ -86,6 +86,8 @@ ggsave("output/VE_plot.pdf", plot = VE_plot,
        width = 7, height = 7, unit="in")
 
 VE_table <- ans_by_study %>%
-    add_row(Study = "All", A = A, B = B)
+    add_row(Study = "All", A = A, B = B) %>%
+    mutate(`Half-life` = -log(2)/B) %>%
+    rename(VE = A, rate = B)
 
 write_csv(x = VE_table, path = "output/VE_table.csv")

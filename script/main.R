@@ -107,9 +107,17 @@ impact_by_age_plot <-
   ylab("Impact (expected total cases averted)") +
   scale_color_brewer(palette= "Set2",
                      name = "Vaccine serotypes"
+<<<<<<< HEAD
   ) +
+=======
+                     ) +
+>>>>>>> b22f82ebfc045b0bc2103038da3834952e6deb77
   theme(legend.position = "bottom")
 
 ggsave(filename = "output/impact_by_vac_age.pdf", 
        plot = impact_by_age_plot,
+<<<<<<< HEAD
        width = 7, height = 4, units = "in")
+=======
+       width = 7, height = 4, units = "in")
+>>>>>>> b22f82ebfc045b0bc2103038da3834952e6deb77
