@@ -21,14 +21,14 @@ ipd <- mutate(ipd, agey = readr::parse_number(substr(agegroup,1,2)))
 theta0 <- min(ipd$incidence,na.rm=TRUE)*0.5  
 model0 <- lm(log(incidence-theta0) ~ agey, data=ipd)  
 alpha0 <- exp(coef(model0)[1])
-beta0  <- exp(coef(model0)[2])
+beta0  <- coef(model0)[2]
 
 #fit nonlinear (weighted) least-squares estimates of the parameters using Gauss-Newton algorithm
 ipd_models <- ipd %>% 
   split(.$serogroup) %>%
   map(~nls(data = .x, 
            incidence ~ exp(log_alpha) * exp(exp(log_beta)*agey) + exp(log_theta),
-           nls.control(maxiter=200),
+           nls.control(maxiter = 200),
            start = list(log_alpha = log(alpha0),
                         log_beta  = log(beta0),
                         log_theta = log(theta0))))
