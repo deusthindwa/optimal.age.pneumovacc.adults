@@ -52,10 +52,10 @@ Cases <- inner_join(ipd_curves, countries_df, by = "agey") %>%
 #estimate vaccine impact against all IPD serotypes
 
 source(here("script", "metacurve.R"))
-VE_table <- read_csv(here("output","VE_table.csv"))
+#VE_table <- read_csv(here("output","VE_table.csv"))
 
-#VE_table <- add_row(VE_table, 
-#                        Study = "None", rate = 0, `Half-life` = Inf)
+VE_table <- add_row(VE_table, 
+                        Study = "None", rate = 0, `Half-life` = Inf)
 
 
 ### make a list check it twice
@@ -94,6 +94,12 @@ scenarios <- list(`1` = data.frame(Study.waning = "Andrews (2012)",
   mutate(Study.waning = ifelse(serogroup == "PCV13" & scenario %in% c(2,4),
                                "Andrews (2012)",
                                Study.waning)) %>%
+  mutate(Study.waning = ifelse(serogroup == "PPV23" & scenario %in% c(2,4),#delete
+                               "Andrews (2012)",
+                               Study.waning)) %>%
+  mutate(Study.waning = ifelse(serogroup == "PPV23" & scenario %in% c(1,3),#delete
+                               "Djennad (2018)",
+                               Study.waning)) %>%
   left_join(dplyr::select(VE_table,
                           Study.waning = Study,
                           rate)) %>%
@@ -106,6 +112,9 @@ scenarios <- list(`1` = data.frame(Study.waning = "Andrews (2012)",
                      VE)) %>%
   mutate(rate  = ifelse(serogroup == "PCV13" & scenario %in% c(1,3),
                         0,
+                        rate)) %>%
+  mutate(rate  = ifelse(serogroup == "PPV23" & scenario %in% c(1,3),#delete
+                        -0.05271415,
                         rate)) %>%
   mutate(delay = ifelse(serogroup == "PCV13" & scenario %in% c(2,4),
                         5,
