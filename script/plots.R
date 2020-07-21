@@ -20,7 +20,7 @@ ggsave(here("output","incidence_plot.pdf"),
        width = 7, height = 5, unit="in")
 
 
-incidence_plot <- ggplot(data = ipd_scaled,
+scaled_incidence_plot <- ggplot(data = ipd_scaled,
                          aes(x = agey,
                              y = p,
                              color = serogroup)) + 
@@ -33,7 +33,7 @@ incidence_plot <- ggplot(data = ipd_scaled,
     scale_color_brewer(palette = "Dark2")
 
 ggsave(here("output","scaled_plot.pdf"),
-       plot = incidence_plot,
+       plot = scaled_incidence_plot,
        width = 7, height = 5, unit="in")
 
 impact_by_age_plot <- 
