@@ -39,10 +39,9 @@ ipd_curves <- ipd_models %>%
   map_df(~mutate(ipd_x, incidence = predict(object = .x, newdata = ipd_x)),
          .id = "serogroup")
 
-#plot scaled incidence
+#calculate scaled incidence
 ipd_scaled <- ipd %>% group_by(serogroup) %>%
   mutate(p = incidence/sum(incidence))
-
 
 #generate IPD cases from total pop and IPD incidence annually
 # table 7
@@ -53,10 +52,10 @@ Cases <- inner_join(ipd_curves, countries_df, by = "agey") %>%
 #estimate vaccine impact against all IPD serotypes
 
 source(here("script", "metacurve.R"))
-#VE_table <- read_csv(here("output","VE_table.csv"))
+VE_table <- read_csv(here("output","VE_table.csv"))
 
-VE_table <- add_row(VE_table,
-                    Study = "None", rate = 0, `Half-life` = Inf)
+#VE_table <- add_row(VE_table, 
+#                        Study = "None", rate = 0, `Half-life` = Inf)
 
 
 ### make a list check it twice
