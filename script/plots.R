@@ -29,6 +29,7 @@ incidence_plot <- ggplot(data = ipd_scaled,
     xlab("Age (years)") +
     ylab("Scaled incidence") +
     theme(legend.position = "bottom") +
+    ylim(c(0, NA)) +
     scale_color_brewer(palette = "Dark2")
 
 ggsave(here("output","scaled_plot.pdf"),
