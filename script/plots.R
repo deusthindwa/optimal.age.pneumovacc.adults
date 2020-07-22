@@ -1,9 +1,6 @@
 # make plots
 
-
-
-
-#plot fitted curves with backward or forward extrapolation
+#backward or forward extrapolation incidence plot
 incidence_plot <- ggplot(data = ipd,
                          aes(x = agey,
                              y = incidence,
@@ -22,7 +19,7 @@ ggsave(here("output","incidence_plot.pdf"),
        width = 7, height = 5, unit="in")
 
 
-#scaled incidence
+#scaled incidence plot
 scaled_incidence_plot <- ggplot(data = ipd_scaled,
                                 aes(x = agey,
                                     y = p,
@@ -41,6 +38,7 @@ ggsave(here("output","scaled_plot.pdf"),
        width = 7, height = 5, unit="in")
 
 
+#vaccine impact plot
 impact_by_age_plot <- 
   ggplot(data = impact_by_age_to_plot,
          aes(x = Vac.age, y= Impact,
@@ -62,7 +60,24 @@ impact_by_age_plot <-
                  color  = factor(age_dep)),
              lty = 2, alpha = 0.5)
 
-
 ggsave(filename = "output/impact_by_vac_age.pdf", 
        plot = impact_by_age_plot,
        width = 7, height = 4, units = "in")
+
+
+#impact per 10000 older adults vaccinated
+ggplot(data = impact_validated,
+       aes(x = Vac.age, y= Impact*10000/ntotal,
+           color  = factor(age_dep),
+           group = interaction(Waning, age_dep, serogroup, delay,
+                               Country))) +
+  geom_line() + 
+  facet_grid(Country ~ serogroup + Waning,
+             scales = "free_y") +
+  theme_bw() +
+  scale_y_continuous(limits = c(0,15)) +
+  xlab("Vaccination Age") +
+  ylab("Impact (cases averted per 10,000 older adults vaccinated)") +
+  theme(legend.position = "bottom") +
+  scale_color_brewer(name = "Age dependent\nvaccine efficacy",
+                     palette = "Set1")
