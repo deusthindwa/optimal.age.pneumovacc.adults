@@ -7,7 +7,7 @@ pacman::p_load(char = c("tidyverse",
                         "scales", 
                         "magrittr"))
 
-options(stringsAsFactors = TRUE)
+options(stringsAsFactors = FALSE)
 
 setwd(here::here())
 
@@ -86,7 +86,6 @@ initial_VE <- function(age, serogroup, age_dep = FALSE, scale = 1){
 }
 
 # generate scenarios by serogroup, country, VE, age and waning
-options(stringsAsFactors = FALSE)
 
 scenarios <- list(`1` = data.frame(Study.waning = "Andrews (2012)",
                                    Study.VE     = "Andrews (2012)"),
@@ -167,15 +166,33 @@ impact_by_age_to_plot_max <-
 
 
 # vaccine impact per 10000 older adults
-Area <- rename(subset(countries_df, select = c("Country","agey","ntotal")), c("Vac.age"="agey"))
-impact_validated <- merge(impact_by_age_to_plot, Area, by=c("Country","Vac.age"))
+impact_validated <-
+  dplyr::select(countries_df, Country, agey, ntotal) %>%
+  dplyr::rename(Vac.age = agey) %>%
+  dplyr::inner_join(impact_by_age_to_plot,
+                    by=c("Country","Vac.age"))
+
 
 
 # 65y old programme impact (%) at 70% coverage
-A65 <- subset(impact_by_age_to_plot, serogroup=="PPV23" & Country == "England/Wales")
-(A65[A65$Waning=="Fast waning" & A65$scenario==3 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Fast waning" & A65$scenario==3,]$Impact))*.7
-(A65[A65$Waning=="Fast waning" & A65$scenario==1 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Fast waning" & A65$scenario==1,]$Impact))*.7
-(A65[A65$Waning=="Slow waning" & A65$scenario==4 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Slow waning" & A65$scenario==4,]$Impact))*.7
-(A65[A65$Waning=="Slow waning" & A65$scenario==2 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Slow waning" & A65$scenario==2,]$Impact))*.7
+coverage <- 0.7
 
+A65 <- impact_by_age_to_plot %>%
+  dplyr::filter(serogroup == "PPV23",
+                Country   == "England/Wales")
+
+
+dplyr::group_by(A65, Waning, scenario) %>%
+  dplyr::mutate(value = coverage*Impact/sum(Impact),
+                Waning = sub(pattern     = "\\swaning", 
+                             replacement = "", 
+                             x           = Waning),
+                Waning = sprintf("%s (%0.3f)", Waning, rate)) %>%
+  dplyr::filter(Vac.age == 65) %>%
+  dplyr::mutate(value = scales::percent(value, 0.1)) %>%
+  dplyr::select(scenario, 
+                Waning,
+                `Age dep.` = age_dep,
+                `Programme impact (%)` = value) %>%
+  dplyr::arrange(scenario) 
 
