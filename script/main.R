@@ -19,7 +19,7 @@ source(here::here("script", "incidence.R"))
 source(here::here("script", "metacurve.R"))
 
 # generate scenarios by serogroup, country, VE, age and waning
-source(here::here("script","vaccination_scenarios.R"))
+source(here::here("script", "vaccination_scenarios.R"))
 
 # compute vaccine impact
-source(here::here("script","vaccine_impact.R"))
+source(here::here("script", "vaccine_impact.R"))
