@@ -7,6 +7,8 @@ pacman::p_load(char = c("tidyverse",
                         "scales", 
                         "magrittr"))
 
+options(stringsAsFactors = TRUE)
+
 setwd(here::here())
 
 #load the IPD cases
