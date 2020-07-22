@@ -159,3 +159,11 @@ impact_by_age_to_plot_max <-
   dplyr::group_by_at(.vars = dplyr::vars(-c(Vac.age, Impact))) %>%
   dplyr::filter(Impact == max(Impact))
 
+#Validation
+coverage <- 0.70
+VE_by_Vac.age$Impact70 <- VE_by_Vac.age$Impact * coverage
+VE_by_Vac.age$Impactp <- VE_by_Vac.age$Impact/VE_by_Vac.age$Impact
+
+
+
+
