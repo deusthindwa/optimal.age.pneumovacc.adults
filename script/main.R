@@ -1,4 +1,4 @@
-#load the require packages
+# load the require packages
 if (!require(pacman)){
   install.packages("pacman")
 }
@@ -6,24 +6,23 @@ pacman::p_load(char = c("tidyverse",
                         "here",
                         "scales", 
                         "magrittr"))
-
 setwd(here::here())
 
-#load the IPD cases
 
+# load the IPD cases
 ipd <- readr::read_csv(here("data", "EW_ipd_incid.csv"))
-
 source(here::here("script", "pops.R"))
-
 ipd <- dplyr::mutate(ipd, agey = readr::parse_number(substr(agegroup,1,2)))
 
-#estimate the rest of parameters using a simple linear model
+
+# estimate the rest of parameters using a simple linear model
 theta0 <- min(ipd$incidence,na.rm=TRUE)*0.5  
 model0 <- lm(log(incidence-theta0) ~ agey, data=ipd)  
 alpha0 <- exp(coef(model0)[1])
 beta0  <- coef(model0)[2]
 
-#fit nonlinear (weighted) least-squares estimates of the parameters using Gauss-Newton algorithm
+
+# fit nonlinear (weighted) least-squares estimates of the parameters using Gauss-Newton algorithm
 # we parameterise in terms of log-rates to ensure the estimates are positive
 ipd_models <- ipd %>% 
   split(.$serogroup) %>%
@@ -42,19 +41,19 @@ ipd_curves <- ipd_models %>%
                                                    newdata = ipd_x)),
                 .id = "serogroup")
 
-#calculate scaled incidence
+
+# calculate scaled incidence
 ipd_scaled <- ipd %>% 
   dplyr::group_by(serogroup) %>%
   dplyr::mutate(p = incidence/sum(incidence))
 
-#generate IPD cases from total pop and IPD incidence annually
+# generate IPD cases from total pop and IPD incidence annually
 # table 7
 Cases <- dplyr::inner_join(ipd_curves, countries_df, by = "agey") %>%
   dplyr::filter(serogroup != "All serotypes") %>%
   dplyr::mutate(cases = incidence/1e5*ntotal)
 
-#estimate vaccine impact against all IPD serotypes
-
+# estimate vaccine impact against all IPD serotypes
 source(here::here("script", "metacurve.R"))
 
 VE_table <- tibble::add_row(VE_table, 
@@ -62,9 +61,7 @@ VE_table <- tibble::add_row(VE_table,
                             rate        = 0, 
                             `Half-life` = Inf)
 
-
-### make a list check it twice
-
+# make a list check it twice
 initial_VE <- function(age, serogroup, age_dep = FALSE, scale = 1){
   # age-dependent vaccine efficacy at time of vaccination
   # may be superseded
@@ -84,6 +81,9 @@ initial_VE <- function(age, serogroup, age_dep = FALSE, scale = 1){
                                       TRUE    ~ NA_real_),
                    TRUE                 ~ NA_real_)/scale
 }
+
+# generate scenarios by serogroup, country, VE, age and waning
+options(stringsAsFactors = FALSE)
 
 scenarios <- list(`1` = data.frame(Study.waning = "Andrews (2012)",
                                    Study.VE     = "Andrews (2012)"),
@@ -123,7 +123,6 @@ scenarios <- list(`1` = data.frame(Study.waning = "Andrews (2012)",
 
 # we want the curve to be at VE if age >= vac.age + delay
 # when delay > 0, we want to subtract delay off
-
 VE_by_Vac.age <- 
   scenarios %>%
   dplyr::inner_join(Cases) %>%
@@ -136,6 +135,8 @@ VE_by_Vac.age <-
   dplyr::mutate(value = ifelse(agey < Vac.age, 0, Vaccine_Efficacy)) %>%
   dplyr::mutate(Impact = value*cases) 
 
+
+# compute vaccine impact
 impact_by_age_to_plot <- 
   VE_by_Vac.age %>%
   dplyr::group_by(serogroup,
@@ -154,16 +155,24 @@ impact_by_age_to_plot <-
                     paste(Waning, sprintf("\n(%i years' delay)", delay)),
                     Waning)) 
 
+
+# compute maximum vaccine impact
 impact_by_age_to_plot_max <- 
   impact_by_age_to_plot %>%
   dplyr::group_by_at(.vars = dplyr::vars(-c(Vac.age, Impact))) %>%
   dplyr::filter(Impact == max(Impact))
 
-#Validation
-coverage <- 0.70
-VE_by_Vac.age$Impact70 <- VE_by_Vac.age$Impact * coverage
-VE_by_Vac.age$Impactp <- VE_by_Vac.age$Impact/VE_by_Vac.age$Impact
+
+# vaccine impact per 10000 older adults
+Area <- rename(subset(countries_df, select = c("Country","agey","ntotal")), c("Vac.age"="agey"))
+impact_validated <- merge(impact_by_age_to_plot, Area, by=c("Country","Vac.age"))
 
 
+# 65y old programme impact (%) at 70% coverage
+A65 <- subset(impact_by_age_to_plot, serogroup=="PPV23" & Country == "England/Wales")
+(A65[A65$Waning=="Fast waning" & A65$scenario==3 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Fast waning" & A65$scenario==3,]$Impact))*.7
+(A65[A65$Waning=="Fast waning" & A65$scenario==1 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Fast waning" & A65$scenario==1,]$Impact))*.7
+(A65[A65$Waning=="Slow waning" & A65$scenario==4 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Slow waning" & A65$scenario==4,]$Impact))*.7
+(A65[A65$Waning=="Slow waning" & A65$scenario==2 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Slow waning" & A65$scenario==2,]$Impact))*.7
 
 
