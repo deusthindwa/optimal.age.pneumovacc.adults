@@ -1,18 +1,28 @@
 # make plots
 
 #backward or forward extrapolation incidence plot
-incidence_plot <- ggplot(data = ipd,
-                         aes(x = agey,
-                             y = incidence,
-                             color = serogroup)) + 
-  geom_point(size=2.5) + 
-  geom_line(data = ipd_curves) +
+
+
+incidence_plot <-  
+  ggplot(data = ipd_curves, aes(x = agey, y = `50%`,
+                                color = serogroup,
+                                fill  = serogroup)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = `2.5%`,
+                  ymax = `97.5%`),
+              alpha = 0.2,
+              color = NA,) +
+  #facet_wrap(~serogroup, nrow = 1) +
   ylim(c(0, NA)) + 
   theme_bw() +
   xlab("Age of vaccination") +
   ylab("Incidence (cases per 100,000)") +
   theme(legend.position = "bottom") +
-  scale_color_brewer(palette = "Dark2")
+  scale_color_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  geom_point(data = ipd, aes(y = incidence))
+
+
 
 ggsave(here("output","incidence_plot.pdf"),
        plot = incidence_plot,
@@ -67,11 +77,7 @@ impact_by_age_plot <-
   scale_color_brewer(name = "Age dependent\nvaccine efficacy",
                      palette = "Set1") + 
   scale_fill_brewer(name = "Age dependent\nvaccine efficacy",
-                    palette = "Set1")# +
-# geom_vline(data = impact_by_age_to_plot_max,
-#            aes(xintercept = Vac.age,
-#                color  = factor(age_dep)),
-#            lty = 2, alpha = 0.5)
+                    palette = "Set1")
 
 ggsave(filename = "output/impact_by_vac_age.pdf", 
        plot = impact_by_age_plot,
@@ -79,7 +85,7 @@ ggsave(filename = "output/impact_by_vac_age.pdf",
 
 
 #impact per 10000 older adults vaccinated
-ggplot(data = impact_validated,
+impact_validated_plot <- ggplot(data = impact_validated,
        aes(x = Vac.age, y= `50%`,
            color  = factor(age_dep),
            group = interaction(Waning, age_dep, serogroup, delay,
@@ -93,12 +99,18 @@ ggplot(data = impact_validated,
   facet_grid(Country ~ serogroup + Waning,
              scales = "free_y") +
   theme_bw() +
-  scale_y_continuous(trans = "log10") +
+  scale_y_continuous(limits = c(0, NA)) +
   xlab("Vaccination Age") +
-  ylab("Impact (cases averted per 10,000 older adults vaccinated)") +
+  ylab("Impact (cases averted per 10K older adults vaccinated)") +
   theme(legend.position = "bottom") +
   scale_color_brewer(name = "Age dependent\nvaccine efficacy",
                      palette = "Set1") +
   scale_fill_brewer(name = "Age dependent\nvaccine efficacy",
                     palette = "Set1") +
   theme(panel.grid.minor.y = element_blank())
+
+
+
+ggsave(filename = "output/impact_validated_by_vac_age.pdf", 
+       plot = impact_validated_plot,
+       width = 7, height = 4, units = "in")

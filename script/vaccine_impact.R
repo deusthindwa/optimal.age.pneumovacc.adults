@@ -19,7 +19,6 @@ impact_by_age_to_plot <-
                         paste(Waning, sprintf("\n(%i years' delay)", delay)),
                         Waning)) 
 
-impact_by_age_to_plot 
 
 # # compute maximum vaccine impact
 # impact_by_age_to_plot_max <- 
