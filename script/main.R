@@ -5,7 +5,8 @@ if (!require(pacman)){
 pacman::p_load(char = c("tidyverse", 
                         "here",
                         "scales", 
-                        "magrittr"))
+                        "magrittr",
+                        "mvtnorm"))
 
 options(stringsAsFactors = FALSE)
 setwd(here::here())

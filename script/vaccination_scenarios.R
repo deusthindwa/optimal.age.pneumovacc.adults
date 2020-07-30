@@ -26,6 +26,8 @@ initial_VE <- function(age, serogroup, age_dep = FALSE){
                      TRUE                 ~ NA_real_)
 }
 
+df_from_study_ <- distinct(df_from_study, Study, VE, rate, sim)
+
 
 scenarios <- list(`1` = data.frame(Study.waning = "Andrews (2012)",
                                    Study.VE     = "Andrews (2012)"),
@@ -41,16 +43,19 @@ scenarios <- list(`1` = data.frame(Study.waning = "Andrews (2012)",
     dplyr::mutate(Study.waning = ifelse(serogroup == "PCV13" & scenario %in% c(2,4),
                                         "Andrews (2012)",
                                         Study.waning)) %>%
+    crossing(sim = 1:Nsims) %>%
     dplyr::left_join(
-        dplyr::select(VE_table,
+        dplyr::select(df_from_study_,
                       Study.waning = Study,
+                      sim,
                       rate),
-        by = "Study.waning") %>%
+        by = c("sim","Study.waning")) %>%
     dplyr::left_join(
-        dplyr::select(VE_table,
+        dplyr::select(df_from_study_,
                       Study.VE = Study,
-                      VE),
-        by = "Study.VE") %>%
+                      VE,
+                      sim),
+        by = c("sim","Study.VE")) %>%
     dplyr::mutate(age_dep = is.na(Study.VE)) %>% 
     dplyr::mutate(
         VE    = ifelse(test = age_dep,
