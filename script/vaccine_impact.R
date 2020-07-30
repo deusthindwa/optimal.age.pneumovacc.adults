@@ -6,13 +6,11 @@ impact_by_age_to_plot <-
                     age_dep,
                     delay,
                     sim,
-                    rate,
                     Vac.age,
-                    Country,
-                    scenario) %>%
+                    Country) %>%
     dplyr::summarise(Impact = sum(Impact)) %>%
     dplyr::mutate(Waning = dplyr::case_when(
-        rate         == 0 ~ "No waning",
+        Study.waning == "None"           ~ "No waning",
         Study.waning == "Andrews (2012)" ~ "Fast waning",
         Study.waning == "Djennad (2018)" ~ "Slow waning"),
         Waning = ifelse(delay > 0,
@@ -34,7 +32,7 @@ impact_validated <-
     dplyr::inner_join(impact_by_age_to_plot,
                       by=c("Country","Vac.age")) %>%
     mutate(Impact = Impact*10000/ntotal) %>%
-    nest(data = c(sim, rate, Impact)) %>%
+    nest(data = c(sim, Impact)) %>%
     mutate(Q = map(data, ~quantile(.x$Impact, probs = c(0.025,
                                                            0.5,
                                                            0.975)))) %>%
@@ -51,7 +49,7 @@ A65 <- impact_by_age_to_plot %>%
 
 
 impact_65y_70pc <-
-    dplyr::group_by(A65, Waning, scenario, sim) %>%
+    dplyr::group_by(A65, Waning, sim) %>%
     dplyr::mutate(value = coverage*Impact/sum(Impact),
                   Waning = sub(pattern     = "\\swaning", 
                                replacement = "", 
@@ -59,7 +57,7 @@ impact_65y_70pc <-
                   #Waning = sprintf("%s (%0.3f)", Waning, rate)
                   ) %>%
     dplyr::filter(Vac.age == 65) %>%
-    select(-rate, -delay, -Impact) %>%
+    select(-delay, -Impact) %>%
     #dplyr::mutate(value = scales::percent(value, 0.1)) %>%
     nest(data = c(sim, value)) %>%
     mutate(Q = map(data, ~quantile(.x$value, probs = c(0.025, 0.5, 0.975)))) %>%
@@ -67,11 +65,11 @@ impact_65y_70pc <-
     ungroup %>%
     mutate_at(.vars = vars(contains("%")),
               .funs = ~scales::percent(., 0.1)) %>%
-    select(scenario,
-           Waning,
+    select(Waning,
            `Age dep.` = age_dep,
            contains("%")) %>%
-    dplyr::arrange(scenario)
+    group_by_at(.vars = vars(-contains("%"))) %>%
+    transmute(Impact = sprintf("%s (%s, %s)", `50%`, `2.5%`, `97.5%`))
 
 
 readr::write_csv(x    = impact_65y_70pc, 

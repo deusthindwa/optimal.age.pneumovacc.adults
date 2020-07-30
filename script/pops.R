@@ -4,7 +4,7 @@
 pop.ew <- read_csv(here("data", "EW_total_pop.csv"))
 pop.mw <- read_csv(here("data", "MW_total_pop.csv")) 
 
-countries <- c("England/Wales"="blue", "Malawi"="red")
+countries <- c("England/Wales"="red", "Malawi"="black")
 
 pop.totals <- list(`England/Wales` = 56286961 + 3152879, # mid-2019
                    `Malawi`        = 18628747) %>%
@@ -24,9 +24,12 @@ if (smooth.pops){
   
   countries_df %<>%
     split(.$Country) %>%
-    map_df(~mutate(.x, ntotal = c(head(.x$ntotal, 2),
-                                 zoo::rollmean(.x$ntotal, 5),
-                                 tail(.x$ntotal, 2))))
+    map(~mutate(.x, N_ = sum(ntotal),
+                ntotal = c(head(.x$ntotal, 2),
+                           zoo::rollmean(.x$ntotal, 5),
+                           tail(.x$ntotal, 2)))) %>%
+    map_df(~mutate(.x,
+                   p = ntotal/sum(ntotal)))
   
 }
 
@@ -47,7 +50,7 @@ countries_plot <- ggplot(data = countries_df,
                ifelse(use.pop.totals,"total national","55+" ),
                " population"),
        color="Countries") +
-  #scale_color_manual(values=countries) +
+  scale_fill_manual(values=countries) +
   theme(axis.text=element_text(face="bold", size=10, color="black"),
         legend.position = "bottom")
 

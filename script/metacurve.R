@@ -79,6 +79,21 @@ df_by_study_q <- df_from_study %>%
   unnest_wider(Q) %>%
   select(-data)
 
+ans_by_study_parms_from_model <-
+  df_from_study %>%
+  distinct(Study, VE, sim, rate) %>%
+  mutate(rate = -rate) %>%
+  gather(key, value, VE, rate) %>%
+  nest(data = c(sim, value)) %>%
+  mutate(Q = map(data, ~quantile(.x$value, probs = c(0.025, 0.5, 0.975)))) %>%
+  unnest_wider(Q) %>%
+  select(-data) %>%
+  group_by(Study, key) %>%
+  transmute(value = sprintf("%0.2f (%0.2f, %0.2f)", `50%`, `2.5%`, `97.5%`)) %>%
+  spread(key, value) %>%
+  select(Study, `Initial efficacy` = VE, `Waning rate` = rate) %>%
+  write_csv(here("output", "waning_rates.csv"))
+
 ans_by_study_parms <-  # these are estimated parameters from optim
   ans_by_study %>%
   map("par") %>%
@@ -110,9 +125,9 @@ VE_plot <- ggplot(data=df) +
                               "*e^{", round(B,3),
                               "*t}"))) 
 
-ggsave("output/VE_plot.pdf",
+ggsave("output/VE_plot.png",
        plot = VE_plot,
-       width = 7, height = 7, unit="in")
+       width = 7, height = 7, unit="in", dpi = 300)
 
 VE_table <- ans_by_study_parms %>%
   #add_row(Study = "All", A = A, B = B) %>%

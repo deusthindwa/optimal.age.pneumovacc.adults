@@ -6,7 +6,9 @@ pacman::p_load(char = c("tidyverse",
                         "here",
                         "scales", 
                         "magrittr",
-                        "mvtnorm"))
+                        "mvtnorm",
+                        "zoo",
+                        "patchwork"))
 
 options(stringsAsFactors = FALSE)
 setwd(here::here())
@@ -25,4 +27,5 @@ source(here::here("script", "vaccination_scenarios.R"))
 # compute vaccine impact
 source(here::here("script", "vaccine_impact.R"))
 
+# make plots
 source(here::here("script", "plots.R"))
