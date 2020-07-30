@@ -11,6 +11,7 @@ pop.totals <- list(`England/Wales` = 56286961 + 3152879, # mid-2019
   map_df(.id = "Country", ~data.frame(N = .x))
 
 use.pop.totals <- FALSE
+smooth.pops    <- TRUE
 
 countries_df <- list(`England/Wales` = pop.ew,
                      `Malawi`        = pop.mw) %>%
@@ -19,13 +20,25 @@ countries_df <- list(`England/Wales` = pop.ew,
   inner_join(pop.totals) %>%
   mutate(p = ntotal/(use.pop.totals*N + (1-use.pop.totals)*sum(ntotal)))
 
+if (smooth.pops){
+  
+  countries_df %<>%
+    split(.$Country) %>%
+    map_df(~mutate(.x, ntotal = c(head(.x$ntotal, 2),
+                                 zoo::rollmean(.x$ntotal, 5),
+                                 tail(.x$ntotal, 2))))
+  
+}
+
 countries_plot <- ggplot(data = countries_df,
        aes(x = agey,
            y = p)) +
   geom_col(aes(fill = Country),
            position = position_dodge()) +
   scale_x_continuous(breaks  = seq(50, 90, by = 10),
-                     labels  = function(x){gsub(pattern = "90", replacement = "90+", x = x)}) + 
+                     labels  = function(x){gsub(pattern = "90",
+                                                replacement = "90+",
+                                                x = x)}) + 
   scale_y_continuous(labels  = scales::percent,
                      limits = c(0, NA)) + 
   theme_bw() + 
