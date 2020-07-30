@@ -4,7 +4,8 @@
 pop.ew <- read_csv(here("data", "EW_total_pop.csv"))
 pop.mw <- read_csv(here("data", "MW_total_pop.csv")) 
 
-countries <- c("England/Wales"="red", "Malawi"="black")
+countries <- c("England/Wales"=rgb(205, 17, 39, maxColorValue = 255),
+               "Malawi"="black")
 
 pop.totals <- list(`England/Wales` = 56286961 + 3152879, # mid-2019
                    `Malawi`        = 18628747) %>%

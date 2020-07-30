@@ -15,7 +15,7 @@ incidence_plot <-
   #facet_wrap(~serogroup, nrow = 1) +
   ylim(c(0, NA)) + 
   theme_bw() +
-  xlab("Age of vaccination") +
+  xlab("Age (years)") +
   ylab("Incidence (cases per 100,000)") +
   theme(legend.position = "bottom") +
   scale_color_brewer(palette = "Dark2") +
