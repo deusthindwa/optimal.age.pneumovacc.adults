@@ -81,3 +81,4 @@ VE_by_Vac.age <-
     dplyr::mutate(Vaccine_Efficacy = VE*exp(rate*(1 + agey_since))) %>%
     dplyr::mutate(value = ifelse(agey < Vac.age, 0, Vaccine_Efficacy)) %>%
     dplyr::mutate(Impact = value*cases) 
+

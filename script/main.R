@@ -24,3 +24,5 @@ source(here::here("script", "vaccination_scenarios.R"))
 
 # compute vaccine impact
 source(here::here("script", "vaccine_impact.R"))
+
+source(here::here("script", "plots.R"))

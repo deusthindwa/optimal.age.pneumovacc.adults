@@ -70,7 +70,8 @@ df_from_study <- ans_by_study %>%
                             newdata = data.frame(t = seq(0,20))),
          .id = "Study") %>%
   rename(VE = X1,
-         rate = X2)
+         rate = X2) %>%
+  mutate(VE = VE/100)
 
 df_by_study_q <- df_from_study %>%
   nest(data = -c(Study, t)) %>%
@@ -109,7 +110,8 @@ VE_plot <- ggplot(data=df) +
                               "*e^{", round(B,3),
                               "*t}"))) 
 
-ggsave("output/VE_plot.pdf", plot = VE_plot,
+ggsave("output/VE_plot.pdf",
+       plot = VE_plot,
        width = 7, height = 7, unit="in")
 
 VE_table <- ans_by_study_parms %>%
