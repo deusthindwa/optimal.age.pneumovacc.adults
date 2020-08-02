@@ -1,3 +1,4 @@
+
 # load the require packages
 if (!require(pacman)){
   install.packages("pacman")
@@ -40,6 +41,37 @@ ipd_curves <- ipd_models %>%
                                incidence = predict(object = .x,
                                                    newdata = ipd_x)),
                 .id = "serogroup")
+
+#bootstrap to obtain confidence intervals for fitted values
+
+uncertainty <- function(z){
+  agey <- ipd_curves$agey[z]
+  incidence <- ipd_curves$incidence[z]
+  ipd_modelx <- nls(data =ipd_curves, 
+            incidence ~ exp(log_alpha) * exp(exp(log_beta)*agey) + exp(log_theta), 
+            start = list(log_alpha = log(0.0409), log_beta = log(0.0772), log_theta = log(1.71)),
+            nls.control(maxiter = 200))
+  
+  predict(ipd_modelx, newdata = list(agey = agey))
+}
+
+intervals <-as_data_frame(replicate(1000, uncertainty(sample.int(108, replace = TRUE))))
+interval <- apply(intervals, 1, quantile, probs = c(0.05, 0.95))
+l_int <- apply(intervals, 1, quantile, probs = 0.05)
+u_int <- apply(intervals, 1, quantile, probs = 0.95)
+
+
+summary(intervals)
+
+
+
+
+
+
+
+
+
+
 
 
 # calculate scaled incidence
@@ -167,12 +199,11 @@ impact_by_age_to_plot_max <-
 Area <- rename(subset(countries_df, select = c("Country","agey","ntotal")), c("Vac.age"="agey"))
 impact_validated <- merge(impact_by_age_to_plot, Area, by=c("Country","Vac.age"))
 
-
 # 65y old programme impact (%) at 70% coverage
 A65 <- subset(impact_by_age_to_plot, serogroup=="PPV23" & Country == "England/Wales")
-(A65[A65$Waning=="Fast waning" & A65$scenario==3 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Fast waning" & A65$scenario==3,]$Impact))*.7
-(A65[A65$Waning=="Fast waning" & A65$scenario==1 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Fast waning" & A65$scenario==1,]$Impact))*.7
-(A65[A65$Waning=="Slow waning" & A65$scenario==4 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Slow waning" & A65$scenario==4,]$Impact))*.7
-(A65[A65$Waning=="Slow waning" & A65$scenario==2 & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Slow waning" & A65$scenario==2,]$Impact))*.7
+(A65[A65$Waning=="Fast waning" & A65$age_dep==TRUE & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Fast waning" & A65$Vac.age==65,]$Impact))*.7
+(A65[A65$Waning=="Fast waning" & A65$age_dep==FALSE & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Fast waning" & A65$Vac.age==65,]$Impact))*.7
+(A65[A65$Waning=="Slow waning" & A65$age_dep==TRUE & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Slow waning" & A65$Vac.age==65,]$Impact))*.7
+(A65[A65$Waning=="Slow waning" & A65$age_dep==FALSE & A65$Vac.age==65,]$Impact/sum(A65[A65$Waning=="Slow waning" & A65$Vac.age==65,]$Impact))*.7
 
 
