@@ -45,19 +45,20 @@ coverage <- 0.7
 
 A65 <- impact_by_age_to_plot %>%
     dplyr::filter(serogroup == "PPV23",
-                  Country   == "England/Wales")
-
+                  Country   == "England/Wales",
+                  Vac.age >= 65) %>% 
+                  inner_join(subset(Cases, select = c("serogroup", "Vac.age", "Country", "sim", "cases")))
 
 impact_65y_70pc <-
     dplyr::group_by(A65, Waning, sim) %>%
-    dplyr::mutate(value = coverage*Impact/sum(Impact),
+    dplyr::mutate(value = coverage*Impact/sum(cases),
                   Waning = sub(pattern     = "\\swaning", 
                                replacement = "", 
                                x           = Waning)#,
                   #Waning = sprintf("%s (%0.3f)", Waning, rate)
                   ) %>%
     dplyr::filter(Vac.age == 65) %>%
-    select(-delay, -Impact) %>%
+    select(-delay, -Impact, -cases) %>%
     #dplyr::mutate(value = scales::percent(value, 0.1)) %>%
     nest(data = c(sim, value)) %>%
     mutate(Q = map(data, ~quantile(.x$value, probs = c(0.025, 0.5, 0.975)))) %>%

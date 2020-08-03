@@ -64,4 +64,4 @@ ipd_scaled <- ipd %>%
 Cases <- dplyr::inner_join(bind_rows(ipd_mc, .id="serogroup"), 
                            countries_df, by = "agey") %>%
     dplyr::filter(serogroup != "All serotypes") %>%
-    dplyr::mutate(cases = fit/1e5*ntotal)
+    dplyr::mutate(cases = fit/1e5*ntotal, Vac.age = agey)
