@@ -56,7 +56,7 @@ impact_65y_70pc <-
                                replacement = "", 
                                x           = Waning)#,
                   #Waning = sprintf("%s (%0.3f)", Waning, rate)
-                  ) %>%
+                  ) %>% 
     dplyr::filter(Vac.age == 65) %>%
     select(-delay, -Impact, -cases) %>%
     #dplyr::mutate(value = scales::percent(value, 0.1)) %>%
